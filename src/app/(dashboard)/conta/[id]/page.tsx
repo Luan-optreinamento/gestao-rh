@@ -7,8 +7,26 @@ import Metric from '@/components/ui/Metric'
 import Button from '@/components/ui/Button'
 import TabelaPagamentos from '@/components/features/TabelaPagamentos'
 import ModalPagamento from '@/components/features/ModalPagamento'
-import type { Pagamento } from '@/lib/types'
 import { fmt } from '@/lib/utils'
+
+type Pagamento = {
+  id: string
+  nome: string
+  valor: string
+  vencimento: string
+  status: string
+  obs?: string | null
+  conta?: string
+}
+
+type PagamentoForm = {
+  nome: string
+  valor: string
+  vencimento: string
+  status: string
+  obs?: string | null
+  conta?: string
+}
 
 export default function ContaPage() {
   const { id } = useParams<{ id: string }>()
@@ -26,7 +44,7 @@ export default function ContaPage() {
 
   useEffect(() => { carregar() }, [carregar])
 
-  async function salvar(dados: Omit<Pagamento, 'id'>) {
+  async function salvar(dados: PagamentoForm) {
     if (editando) {
       await fetch(`/api/pagamentos/${editando.id}`, {
         method: 'PATCH',

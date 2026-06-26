@@ -3,32 +3,34 @@ import { useState, useEffect } from 'react'
 import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 
-type Pagamento = {
-  id?: string
+type PagamentoForm = {
   nome: string
   valor: string
   vencimento: string
-  status?: string
+  status: string
   obs?: string | null
+  conta?: string
 }
+
+type PagamentoInicial = PagamentoForm & { id?: string }
 
 type Props = {
   open: boolean
   onClose: () => void
-  onSalvar: (dados: Omit<Pagamento, 'id'>) => void | Promise<void>
-  inicial?: Pagamento | null
+  onSalvar: (dados: PagamentoForm) => void | Promise<void>
+  inicial?: PagamentoInicial | null
   conta: string
 }
 
-const vazio = { nome: '', valor: '', vencimento: '', obs: '' }
+const vazio: PagamentoForm = { nome: '', valor: '', vencimento: '', obs: '', status: 'pendente' }
 
 export default function ModalPagamento({ open, onClose, onSalvar, inicial, conta }: Props) {
-  const [form, setForm] = useState(vazio)
+  const [form, setForm] = useState<PagamentoForm>(vazio)
 
   useEffect(() => {
     setForm(
       inicial
-        ? { nome: inicial.nome, valor: inicial.valor, vencimento: inicial.vencimento, obs: inicial.obs || '' }
+        ? { nome: inicial.nome, valor: inicial.valor, vencimento: inicial.vencimento, obs: inicial.obs || '', status: inicial.status || 'pendente' }
         : vazio
     )
   }, [inicial, open])
@@ -41,7 +43,7 @@ export default function ModalPagamento({ open, onClose, onSalvar, inicial, conta
     if (!form.nome || !form.valor || !form.vencimento) {
       return alert('Preencha nome, valor e vencimento.')
     }
-    onSalvar({ ...form, status: inicial?.status || 'pendente' })
+    onSalvar(form)
     onClose()
   }
 
@@ -49,7 +51,7 @@ export default function ModalPagamento({ open, onClose, onSalvar, inicial, conta
     <Modal
       open={open}
       onClose={onClose}
-      title={`${inicial ? 'Editar' : 'Novo'} Pagamento — ${conta}`}
+      title={`${inicial?.id ? 'Editar' : 'Novo'} Pagamento — ${conta}`}
       onConfirm={handleSalvar}
     >
       <div className="space-y-3">
@@ -77,7 +79,7 @@ export default function ModalPagamento({ open, onClose, onSalvar, inicial, conta
         </div>
         <Input
           label="Observação"
-          value={form.obs}
+          value={form.obs || ''}
           onChange={e => set('obs', e.target.value)}
           placeholder="Opcional..."
         />
