@@ -10,12 +10,15 @@ import ModalConciliacao from '@/components/features/ModalConciliacao'
 import type { Transacao, CentroCusto } from '@/lib/types'
 import { fmt, fmtData } from '@/lib/utils'
 
+const hoje = new Date().toISOString().split('T')[0]
+
 export default function ExtratoPage() {
   const [txs, setTxs] = useState<Transacao[]>([])
   const [centros, setCentros] = useState<CentroCusto[]>([])
   const [aba, setAba] = useState<'upload' | 'historico'>('upload')
   const [modal, setModal] = useState(false)
   const [selecionada, setSelecionada] = useState<Transacao | null>(null)
+  const [modoEdicao, setModoEdicao] = useState(false)
 
   const [filtroDe, setFiltroDe] = useState('')
   const [filtroAte, setFiltroAte] = useState('')
@@ -47,6 +50,9 @@ export default function ExtratoPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ descricao, centroCustoId, conciliada: true }),
     })
+    setModal(false)
+    setSelecionada(null)
+    setModoEdicao(false)
     carregar()
   }
 
@@ -58,6 +64,18 @@ export default function ExtratoPage() {
       body: JSON.stringify({ descricao: '(ignorada)', conciliada: true }),
     })
     carregar()
+  }
+
+  function abrirEdicao(t: Transacao) {
+    setSelecionada(t)
+    setModoEdicao(true)
+    setModal(true)
+  }
+
+  function abrirConciliacao(t: Transacao) {
+    setSelecionada(t)
+    setModoEdicao(false)
+    setModal(true)
   }
 
   const pendentes = txs.filter(t => !t.conciliada)
@@ -72,6 +90,7 @@ export default function ExtratoPage() {
   }).sort((a, b) => b.data.localeCompare(a.data))
 
   const totalConciliadas = conciliadas.reduce((s, t) => s + parseFloat(t.valor), 0)
+  const futuras = conciliadas.filter(t => t.data > hoje)
 
   return (
     <div>
@@ -84,7 +103,9 @@ export default function ExtratoPage() {
             onClick={() => setAba(a)}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${aba === a ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            {a === 'upload' ? `Upload${pendentes.length > 0 ? ` (${pendentes.length} pendente(s))` : ''}` : 'Histórico'}
+            {a === 'upload'
+              ? `Upload${pendentes.length > 0 ? ` (${pendentes.length} pendente(s))` : ''}`
+              : 'Histórico'}
           </button>
         ))}
       </div>
@@ -101,28 +122,42 @@ export default function ExtratoPage() {
                 <li>• Duplicatas ignoradas por ID único (FITID)</li>
                 <li>• Débitos e créditos identificados automaticamente</li>
                 <li>• Atribua descrição e centro de custo após importar</li>
+                <li>• Transações com data futura são do banco (parcelas agendadas)</li>
               </ul>
             </Card>
           </div>
           {pendentes.length > 0 && (
             <Card title={`Transações para Conciliar (${pendentes.length})`}>
-              {pendentes.map(t => (
-                <div key={t.id} className="border border-gray-200 rounded-lg p-3 mb-3">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <div className="text-sm font-medium">{t.memo || '(sem descrição)'}</div>
-                      <div className="text-xs text-gray-400">{fmtData(t.data)} • {t.conta === 'conta01' ? 'Conta 01' : 'Conta 02'}</div>
+              {pendentes.map(t => {
+                const futura = t.data > hoje
+                return (
+                  <div key={t.id} className={`border rounded-lg p-3 mb-3 ${futura ? 'border-amber-200 bg-amber-50' : 'border-gray-200'}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-medium">{t.memo || '(sem descrição)'}</div>
+                          {futura && (
+                            <span className="text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5 rounded-full">
+                              ⏳ Data futura
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {fmtData(t.data)} • {t.conta === 'conta01' ? 'Conta 01' : 'Conta 02'}
+                          {futura && <span className="text-amber-600 ml-1">— agendado pelo banco</span>}
+                        </div>
+                      </div>
+                      <div className={`text-sm font-semibold ${parseFloat(t.valor) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {fmt(parseFloat(t.valor))}
+                      </div>
                     </div>
-                    <div className={`text-sm font-semibold ${parseFloat(t.valor) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {fmt(parseFloat(t.valor))}
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="primary" onClick={() => abrirConciliacao(t)}>Atribuir</Button>
+                      <Button size="sm" variant="danger" onClick={() => ignorar(t.id)}>Ignorar</Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="primary" onClick={() => { setSelecionada(t); setModal(true) }}>Atribuir</Button>
-                    <Button size="sm" variant="danger" onClick={() => ignorar(t.id)}>Ignorar</Button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </Card>
           )}
         </div>
@@ -130,6 +165,20 @@ export default function ExtratoPage() {
 
       {aba === 'historico' && (
         <div className="space-y-5">
+          {futuras.length > 0 && (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <span className="text-amber-500 text-lg">⚠</span>
+              <div>
+                <div className="text-sm font-semibold text-amber-800">
+                  {futuras.length} transação(ões) com data futura
+                </div>
+                <div className="text-xs text-amber-700 mt-0.5">
+                  São parcelas agendadas pelo banco (IPVA, tributos, etc). Já estão conciliadas mas ainda não ocorreram.
+                </div>
+              </div>
+            </div>
+          )}
+
           <Card title="Filtros">
             <div className="grid grid-cols-4 gap-3">
               <Input label="De" type="date" value={filtroDe} onChange={e => setFiltroDe(e.target.value)} />
@@ -139,7 +188,10 @@ export default function ExtratoPage() {
                 value={filtroConta}
                 onChange={e => setFiltroConta(e.target.value)}
                 placeholder="Todas"
-                options={[{ value: 'conta01', label: 'Conta 01' }, { value: 'conta02', label: 'Conta 02' }]}
+                options={[
+                  { value: 'conta01', label: 'Conta 01' },
+                  { value: 'conta02', label: 'Conta 02' },
+                ]}
               />
               <Select
                 label="Centro de Custo"
@@ -168,17 +220,23 @@ export default function ExtratoPage() {
               : <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      {['Data', 'Banco', 'Valor', 'Descrição', 'Centro de Custo', 'Conta'].map(h => (
-                        <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 py-2">{h}</th>
+                      {['Data', 'Banco', 'Valor', 'Descrição', 'Centro de Custo', 'Conta', ''].map((h, i) => (
+                        <th key={i} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 py-2">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {conciliadas.map(t => {
                       const cc = centros.find(c => c.id === t.centroCustoId)
+                      const futura = t.data > hoje
                       return (
-                        <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-3 py-2.5 whitespace-nowrap">{fmtData(t.data)}</td>
+                        <tr key={t.id} className={`border-b border-gray-100 hover:bg-gray-50 ${futura ? 'bg-amber-50/50' : ''}`}>
+                          <td className="px-3 py-2.5 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              {fmtData(t.data)}
+                              {futura && <span title="Data futura — agendado pelo banco" className="text-amber-500 text-xs">⏳</span>}
+                            </div>
+                          </td>
                           <td className="px-3 py-2.5 text-gray-400 max-w-[160px] truncate">{t.memo}</td>
                           <td className={`px-3 py-2.5 font-semibold whitespace-nowrap ${parseFloat(t.valor) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {fmt(parseFloat(t.valor))}
@@ -191,6 +249,9 @@ export default function ExtratoPage() {
                             }
                           </td>
                           <td className="px-3 py-2.5">{t.conta === 'conta01' ? 'Conta 01' : 'Conta 02'}</td>
+                          <td className="px-3 py-2.5">
+                            <Button size="sm" onClick={() => abrirEdicao(t)}>Editar</Button>
+                          </td>
                         </tr>
                       )
                     })}
@@ -203,10 +264,11 @@ export default function ExtratoPage() {
 
       <ModalConciliacao
         open={modal}
-        onClose={() => setModal(false)}
+        onClose={() => { setModal(false); setSelecionada(null); setModoEdicao(false) }}
         transacao={selecionada}
         centros={centros}
         onSalvar={conciliar}
+        modoEdicao={modoEdicao}
       />
     </div>
   )
