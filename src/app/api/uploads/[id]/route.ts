@@ -3,9 +3,9 @@ import { db } from '@/lib/db'
 import { uploads, transacoes } from '@/lib/schema'
 import { eq } from 'drizzle-orm'
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
     const upload = await db.select().from(uploads).where(eq(uploads.id, id))
     if (!upload.length) {
       return NextResponse.json({ erro: 'Upload não encontrado' }, { status: 404 })
