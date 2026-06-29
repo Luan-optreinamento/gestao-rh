@@ -13,7 +13,7 @@ type Transacao = {
 }
 
 type Props = {
-  onImportar: (transacoes: Transacao[], conta: string, nomeArquivo: string) => Promise<{ inseridas: number; duplicatas: number }>
+  onImportar: (transacoes: Transacao[], conta: string, nomeArquivo: string) => Promise<{ inseridas: number; duplicatas: number; descartadas: number }>
 }
 
 function parseOFX(raw: string, conta: string): Transacao[] {
@@ -44,7 +44,12 @@ export default function UploadOFX({ onImportar }: Props) {
     if (!txs.length) { setStatus('Nenhuma transação encontrada no arquivo.'); return }
     setLoading(true)
     const res = await onImportar(txs, conta, file.name)
-    setStatus(`✓ ${res.inseridas} importada(s). ${res.duplicatas} duplicata(s) ignorada(s).`)
+    const partes = [
+      `✓ ${res.inseridas} importada(s).`,
+      `${res.duplicatas} duplicata(s) ignorada(s).`,
+      ...(res.descartadas > 0 ? [`${res.descartadas} agendamento(s) descartado(s).`] : []),
+    ]
+    setStatus(partes.join(' '))
     setLoading(false)
   }
 

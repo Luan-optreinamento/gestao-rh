@@ -10,13 +10,11 @@ import ModalConciliacao from '@/components/features/ModalConciliacao'
 import type { Transacao, CentroCusto, Upload } from '@/lib/types'
 import { fmt, fmtData } from '@/lib/utils'
 
-const hoje = new Date().toISOString().split('T')[0]
-
 export default function ExtratoPage() {
   const [txs, setTxs] = useState<Transacao[]>([])
   const [centros, setCentros] = useState<CentroCusto[]>([])
   const [uploads, setUploads] = useState<Upload[]>([])
-  const [aba, setAba] = useState<'upload' | 'agendados' | 'importacoes' | 'historico'>('upload')
+  const [aba, setAba] = useState<'upload' | 'importacoes' | 'historico'>('upload')
   const [modal, setModal] = useState(false)
   const [selecionada, setSelecionada] = useState<Transacao | null>(null)
   const [modoEdicao, setModoEdicao] = useState(false)
@@ -95,8 +93,7 @@ export default function ExtratoPage() {
     setModal(true)
   }
 
-  const filaConciliacao = txs.filter(t => !t.conciliada && (!t.futura || t.data <= hoje))
-  const agendados = txs.filter(t => !t.conciliada && t.futura && t.data > hoje)
+  const pendentes = txs.filter(t => !t.conciliada)
 
   const conciliadas = txs.filter(t => {
     if (!t.conciliada || t.descricao === '(ignorada)') return false
@@ -110,8 +107,7 @@ export default function ExtratoPage() {
   const totalConciliadas = conciliadas.reduce((s, t) => s + parseFloat(t.valor), 0)
 
   const tabs = [
-    { key: 'upload' as const, label: `Upload${filaConciliacao.length > 0 ? ` (${filaConciliacao.length})` : ''}` },
-    { key: 'agendados' as const, label: `Agendados${agendados.length > 0 ? ` (${agendados.length})` : ''}` },
+    { key: 'upload' as const, label: `Upload${pendentes.length > 0 ? ` (${pendentes.length})` : ''}` },
     { key: 'importacoes' as const, label: 'Importações' },
     { key: 'historico' as const, label: 'Histórico' },
   ]
@@ -144,13 +140,13 @@ export default function ExtratoPage() {
                 <li>• Duplicatas ignoradas por ID único (FITID)</li>
                 <li>• Débitos e créditos identificados automaticamente</li>
                 <li>• Atribua descrição e centro de custo após importar</li>
-                <li>• Transações com data futura aparecem na aba Agendados</li>
+                <li>• Transações com data futura são descartadas automaticamente</li>
               </ul>
             </Card>
           </div>
-          {filaConciliacao.length > 0 && (
-            <Card title={`Fila de Conciliação (${filaConciliacao.length})`}>
-              {filaConciliacao.map(t => (
+          {pendentes.length > 0 && (
+            <Card title={`Fila de Conciliação (${pendentes.length})`}>
+              {pendentes.map(t => (
                 <div key={t.id} className="border border-gray-200 rounded-lg p-3 mb-3">
                   <div className="flex justify-between items-start mb-2">
                     <div>
@@ -171,45 +167,6 @@ export default function ExtratoPage() {
               ))}
             </Card>
           )}
-        </div>
-      )}
-
-      {aba === 'agendados' && (
-        <div className="space-y-5">
-          {agendados.length === 0
-            ? <Card title="Agendados"><p className="text-sm text-gray-400 text-center py-6">Nenhuma transação agendada.</p></Card>
-            : (
-              <Card title={`Agendados pelo Banco (${agendados.length})`}>
-                <p className="text-xs text-gray-400 mb-4">Lançamentos com data futura importados do OFX. Serão movidos para a fila de conciliação quando a data chegar.</p>
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      {['Data', 'Banco', 'Valor', 'Conta', 'Status'].map((h, i) => (
-                        <th key={i} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 py-2">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {agendados.sort((a, b) => a.data.localeCompare(b.data)).map(t => (
-                      <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="px-3 py-2.5 whitespace-nowrap">{fmtData(t.data)}</td>
-                        <td className="px-3 py-2.5 text-gray-600 max-w-[200px] truncate">{t.memo || '(sem descrição)'}</td>
-                        <td className={`px-3 py-2.5 font-semibold whitespace-nowrap ${parseFloat(t.valor) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {fmt(parseFloat(t.valor))}
-                        </td>
-                        <td className="px-3 py-2.5">{t.conta === 'conta01' ? 'Conta 01' : 'Conta 02'}</td>
-                        <td className="px-3 py-2.5">
-                          <span className="text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5 rounded-full">
-                            Agendado
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-            )
-          }
         </div>
       )}
 

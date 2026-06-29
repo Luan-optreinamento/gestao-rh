@@ -18,7 +18,6 @@ export type Transacao = {
   descricao?: string | null
   centroCustoId?: string | null
   conciliada: boolean
-  futura?: boolean
 }
 
 export type CentroCusto = {

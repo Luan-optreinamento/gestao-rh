@@ -30,14 +30,19 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { transacoes: lote, conta, nomeArquivo } = body
-    const qtdTotal = lote.length
-    const inseridas: (typeof transacoes.$inferInsert)[] = []
-    const duplicatas: string[] = []
     const hoje = new Date().toISOString().slice(0, 10)
 
-    for (const tx of lote) {
-      let existe: unknown[]
+    const inseridas: (typeof transacoes.$inferInsert)[] = []
+    const duplicatas: string[] = []
+    let descartadas = 0
 
+    for (const tx of lote) {
+      if (tx.data > hoje) {
+        descartadas++
+        continue
+      }
+
+      let existe: unknown[]
       if (tx.fitid) {
         existe = await db.select().from(transacoes).where(eq(transacoes.fitid, tx.fitid))
       } else {
@@ -56,7 +61,7 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      inseridas.push({ id: uid(), ...tx, futura: tx.data > hoje })
+      inseridas.push({ id: uid(), ...tx })
     }
 
     const uploadId = uid()
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
       id: uploadId,
       conta,
       nomeArquivo,
-      totalTransacoes: qtdTotal,
+      totalTransacoes: lote.length,
       inseridas: inseridas.length,
       duplicatas: duplicatas.length,
     })
@@ -73,7 +78,7 @@ export async function POST(req: NextRequest) {
       await db.insert(transacoes).values({ ...tx, uploadId })
     }
 
-    return NextResponse.json({ inseridas: inseridas.length, duplicatas: duplicatas.length, uploadId })
+    return NextResponse.json({ inseridas: inseridas.length, duplicatas: duplicatas.length, descartadas, uploadId })
   } catch {
     return NextResponse.json({ erro: 'Erro ao importar transações' }, { status: 500 })
   }

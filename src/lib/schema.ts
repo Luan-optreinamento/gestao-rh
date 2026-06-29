@@ -47,6 +47,5 @@ export const transacoes = pgTable('transacoes', {
   centroCustoId: text('centro_custo_id').references(() => centrosCusto.id),
   uploadId: text('upload_id').references(() => uploads.id),
   conciliada: boolean('conciliada').default(false),
-  futura: boolean('futura').default(false),
   createdAt: timestamp('created_at').defaultNow(),
 })
