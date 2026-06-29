@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { transacoes } from '@/lib/schema'
+import { transacoes, uploads } from '@/lib/schema'
 import { eq, and, gte, lte } from 'drizzle-orm'
 import { uid } from '@/lib/utils'
 
@@ -29,18 +29,51 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const inseridas = []
-    const duplicatas = []
+    const { transacoes: lote, conta, nomeArquivo } = body
+    const qtdTotal = lote.length
+    const inseridas: (typeof transacoes.$inferInsert)[] = []
+    const duplicatas: string[] = []
+    const hoje = new Date().toISOString().slice(0, 10)
 
-    for (const tx of body.transacoes) {
-      const existe = await db.select().from(transacoes).where(eq(transacoes.fitid, tx.fitid))
-      if (existe.length) { duplicatas.push(tx.fitid); continue }
-      const nova = { id: uid(), ...tx }
-      await db.insert(transacoes).values(nova)
-      inseridas.push(nova)
+    for (const tx of lote) {
+      let existe: unknown[]
+
+      if (tx.fitid) {
+        existe = await db.select().from(transacoes).where(eq(transacoes.fitid, tx.fitid))
+      } else {
+        existe = await db.select().from(transacoes).where(
+          and(
+            eq(transacoes.data, tx.data),
+            eq(transacoes.valor, tx.valor),
+            eq(transacoes.memo, tx.memo ?? ''),
+            eq(transacoes.conta, tx.conta),
+          )
+        )
+      }
+
+      if (existe.length) {
+        duplicatas.push(tx.fitid ?? `${tx.data}|${tx.valor}|${tx.memo}`)
+        continue
+      }
+
+      inseridas.push({ id: uid(), ...tx, futura: tx.data > hoje })
     }
 
-    return NextResponse.json({ inseridas: inseridas.length, duplicatas: duplicatas.length })
+    const uploadId = uid()
+    await db.insert(uploads).values({
+      id: uploadId,
+      conta,
+      nomeArquivo,
+      totalTransacoes: qtdTotal,
+      inseridas: inseridas.length,
+      duplicatas: duplicatas.length,
+    })
+
+    for (const tx of inseridas) {
+      await db.insert(transacoes).values({ ...tx, uploadId })
+    }
+
+    return NextResponse.json({ inseridas: inseridas.length, duplicatas: duplicatas.length, uploadId })
   } catch {
     return NextResponse.json({ erro: 'Erro ao importar transações' }, { status: 500 })
   }

@@ -18,10 +18,21 @@ export type Transacao = {
   descricao?: string | null
   centroCustoId?: string | null
   conciliada: boolean
+  futura?: boolean
 }
 
 export type CentroCusto = {
   id: string
   nome: string
   descricao?: string | null
+}
+
+export type Upload = {
+  id: string
+  conta: string
+  nomeArquivo: string
+  totalTransacoes: number
+  inseridas: number
+  duplicatas: number
+  createdAt: string
 }

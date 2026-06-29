@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, numeric, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, numeric, boolean, integer } from 'drizzle-orm/pg-core'
 
 export const usuarios = pgTable('usuarios', {
   id: text('id').primaryKey(),
@@ -26,6 +26,16 @@ export const pagamentos = pgTable('pagamentos', {
   createdAt: timestamp('created_at').defaultNow(),
 })
 
+export const uploads = pgTable('uploads', {
+  id: text('id').primaryKey(),
+  conta: text('conta').notNull(),
+  nomeArquivo: text('nome_arquivo').notNull(),
+  totalTransacoes: integer('total_transacoes').notNull(),
+  inseridas: integer('inseridas').notNull(),
+  duplicatas: integer('duplicatas').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
 export const transacoes = pgTable('transacoes', {
   id: text('id').primaryKey(),
   fitid: text('fitid').notNull().unique(),
@@ -35,6 +45,8 @@ export const transacoes = pgTable('transacoes', {
   memo: text('memo'),
   descricao: text('descricao'),
   centroCustoId: text('centro_custo_id').references(() => centrosCusto.id),
+  uploadId: text('upload_id').references(() => uploads.id),
   conciliada: boolean('conciliada').default(false),
+  futura: boolean('futura').default(false),
   createdAt: timestamp('created_at').defaultNow(),
 })
