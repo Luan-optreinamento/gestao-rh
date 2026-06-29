@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "lint": "next lint",
-  "db:push": "drizzle-kit push",
-  "db:studio": "drizzle-kit studio"
-},
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "argon2": "^0.44.0",
@@ -28,10 +28,12 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "playwright": "^1.61.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
   "allowScripts": {
-    "argon2@0.44.0": true
+    "argon2@0.44.0": true,
+    "playwright@1.61.1": true
   }
 }
